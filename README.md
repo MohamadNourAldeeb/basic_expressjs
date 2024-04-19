@@ -42,4 +42,4 @@ in this api there is the following endpoints:
 
 for the authentication I used json web token JWT ,  Bearer Token when you login or register an account you will get a token in the response header "authorization" use the same header to send the token with your requests for the notes
 
-# created By :Eng.mohamad noor aldeeb ,Eng raed al masri
+# created By :Eng.mohamad noor aldeeb 
