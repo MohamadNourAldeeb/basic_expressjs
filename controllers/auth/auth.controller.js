@@ -18,6 +18,11 @@ import dotenv from "dotenv";
 dotenv.config({ path: `./.env` });
 import { v4 as uuidv4 } from "uuid";
 import { sequelize } from "../../utils/connect.js";
+
+import  sendingMail from "../../utils/emails.js";
+import crypto from 'crypto';
+import { addToRedisCache, getFromRedisCache } from "../../utils/redis_cache.js";
+
 const authController = {
     login: async (req, res, next) => {
         const user = await User.findOne({
@@ -59,25 +64,25 @@ const authController = {
             process.env.TOKEN_KEY,
             process.env.JWT_EXPIRES_IN
         );
-        const refresh_token = generateToken(
-            {
-                userId: user.id,
-                deviceId,
-            },
-            process.env.REFRESH_TOKEN_KEY,
-            process.env.REFRESH_TOKEN_EXPIRES_IN
-        );
-        await Refresh_Token.create({
-            token: refresh_token,
-            user_id: user.id,
-            device_id: deviceId,
-        });
+        // const refresh_token = generateToken(
+        //     {
+        //         userId: user.id,
+        //         deviceId,
+        //     },
+        //     process.env.REFRESH_TOKEN_KEY,
+        //     process.env.REFRESH_TOKEN_EXPIRES_IN
+        // );
+        // await Refresh_Token.create({
+        //     token: refresh_token,
+        //     user_id: user.id,
+        //     device_id: deviceId,
+        // });
         res.status(StatusCodes.OK).send({
             success: true,
             data: {
                 msg: `welcome ${user.username}`,
                 token,
-                refresh_token,
+                // refresh_token,
                 userExtPerm,
             },
         });
@@ -164,6 +169,7 @@ const authController = {
                 );
         }
         await sequelize.transaction(async (transaction) => {
+         
             let user = await User.create(
                 {
                     full_name: req.body.full_name,
@@ -172,9 +178,18 @@ const authController = {
                     username: req.body.username,
                     password: req.body.password,
                     role_id: req.body.role_id,
+                    email:req.body.email
                 },
                 { transaction }
             );
+            const verifiedCode=crypto.randomInt(100000,999999).toString();
+            addToRedisCache(
+             user.email,
+                verifiedCode,
+                3 * 60 
+            );
+            // store the verifiedCode for 3 minutes
+            await sendingMail({from:process.env.email,to:user.email,subject: "Account Verification Link", name:user.username,verifiedCode})
             if (req.body.customPermissions.length)
                 await User_Permissions.bulkCreate(
                     req.body.customPermissions.map((item) => ({
@@ -184,7 +199,7 @@ const authController = {
                 ),
                     transaction;
         });
-
+    
         res.status(StatusCodes.OK).send({
             success: true,
             data: { msg: "operation accomplished successfully" },
@@ -196,6 +211,100 @@ const authController = {
             data: { msg: "operation accomplished successfully" },
         });
     },
+    verification: async (req, res, next) => {
+       const verifiedCodeCash= await getFromRedisCache(
+        req.params.email
+    );
+        const InputverifiedCode =req.body.verifiedCode;
+    if(!verifiedCodeCash)
+    throw new CustomError(
+        SINGNUP_ERROR,
+        "Sorry, time is up. ",
+        StatusCodes.BAD_REQUEST
+    );
+      if(verifiedCodeCash !==InputverifiedCode)
+      throw new CustomError(
+        SINGNUP_ERROR,
+        "Sorry, the verification code is incorrect ",
+        StatusCodes.BAD_REQUEST
+    );
+    const user = await User.findOne({
+        raw: true,
+        where: { email: req.params.email },
+    });
+    if (!user)
+    throw new CustomError(
+        LOGIN_ERROR,
+        "SomeThing went wrong !!! , user with this email not found",
+        StatusCodes.BAD_REQUEST
+    );
+    let userExtPerm = await User_Permissions.findAll({
+        raw: true,
+        where: { user_id: user.id },
+    });
+    userExtPerm = userExtPerm.map((item) => item.id);
+    let deviceId = uuidv4();
+    const token = generateToken(
+        {
+            userId: user.id,
+            userName: user.username,
+            roleId: user.role_id,
+            userExtPerm,
+            deviceId,
+        },
+        process.env.TOKEN_KEY,
+        process.env.JWT_EXPIRES_IN
+    );
+        res.status(StatusCodes.OK).send({
+            success: true,
+            data: {
+                msg: `welcome ${user.username}`,
+                token,
+                // refresh_token,
+                userExtPerm,
+            },
+        });
+    },
+    reset_password:async(req,res,next)=>{
+
+        const user = await User.findOne({
+            raw: true,
+            where: { id: req.user.userId },
+        });
+
+        if (!user)
+            throw new CustomError(
+                LOGIN_ERROR,
+                "the user not found",
+                StatusCodes.BAD_REQUEST
+            );
+        const validPassword = await bcrypt.compare(
+            req.body.password,
+            user.password
+        );
+        if (!validPassword)
+            throw new CustomError(
+                LOGIN_ERROR,
+                "the old password is incorrect",
+                StatusCodes.BAD_REQUEST
+            );
+        
+
+        await User.update(
+            {
+                password: bcrypt(req.body.new_password),
+            },
+            {
+                where: { id: user.id },
+            }
+        );
+
+        res.status(StatusCodes.OK).send({
+            success: true,
+            data: { msg: "operation accomplished successfully" },
+        });
+    }
+
 };
 
 export default authController;

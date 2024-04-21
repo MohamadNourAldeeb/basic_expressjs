@@ -37,7 +37,7 @@ export const limitLogin = rateLimit({
     // skipSuccessfulRequests: false,
     message: {
         success: false,
-        error: "لقد قمت ب محاولة تسجيل الدخول بشكل كبير الرجاء الانتظار مدة 5 دقائق",
+        error: "Too many requests from this IP, please try again after 2 minutes :)",
         // data: {},
     },
 });

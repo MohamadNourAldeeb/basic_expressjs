@@ -80,9 +80,7 @@ async function initial() {
         role_name: "user",
     });
     await all.Permissions.bulkCreate(allPermissions);
-
     await all.Role_Permissions.bulkCreate(adminRolePermissions);
     await all.Role_Permissions.bulkCreate(userRolePermissions);
-    addToRedisCache(1, adminRolePermissions);
-    addToRedisCache(2, userRolePermissions);
+
 }

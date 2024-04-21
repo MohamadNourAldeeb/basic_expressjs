@@ -1,41 +1,45 @@
 import dotenv from "dotenv";
-import { Role_Permissions } from "../models/index.js";
 import CustomError from "../utils/custom_error.js";
 import { StatusCodes } from "http-status-codes";
 import { ACCESS_DENIED } from "../utils/constants/error_code.js";
+import { setRoleAndRestrictionCache } from "../utils/set_cash.js";
+import { getFromRedisCache } from "../utils/redis_cache.js";
 dotenv.config({ path: `./.env` });
 const authorization = (action) => {
-    return async (req, res, next) => {
-        try {
-            const { userId, userName, roleId, userExtPerm, deviceId } =
-                req.user;
+  return async (req, res, next) => {
+    try {
+      const { userId, userName, roleId, userExtPerm, deviceId } = req.user;
 
-            let userPerm = await Role_Permissions.findAll({
-                raw: true,
-                attributes: ["perm_id"],
-                where: { role_id: roleId },
-            });
-            userPerm = userPerm.map((item) => item.perm_id);
-            const mergedArray = [...new Set([...userPerm, ...userExtPerm])];
+      let fromCache = await getFromRedisCache(`role:${roleId}`);
 
-            if (!userPerm.length)
-                throw new CustomError(
-                    ACCESS_DENIED,
-                    "يوجد خطأ في اسناد صلاحياتك",
-                    StatusCodes.UNAUTHORIZED
-                );
-            if (!mergedArray.includes(action))
-                throw new CustomError(
-                    ACCESS_DENIED,
-                    "ليس لديك الصلاحية لاستخدام هذا الرابط",
-                    StatusCodes.UNAUTHORIZED
-                );
+      fromCache = JSON.parse(fromCache);
+      if (!fromCache) {
+        await setRoleAndRestrictionCache();
+        let fromCache = await getFromRedisCache(
+            `role:${roleId}`
+        );
+        fromCache = JSON.parse(fromCache);
 
-            next();
-        } catch (error) {
-            return next(error);
-        }
-    };
+        if (!fromCache)
+        throw new CustomError(
+            ACCESS_DENIED,
+            "An error has occurred, please re-login",
+            StatusCodes.UNAUTHORIZED
+        );
+    } 
+    if (userExtPerm?.length && userExtPerm.includes(action))
+        return  next();
+    if (!fromCache.permissions.includes(action))
+    throw new CustomError(
+        ACCESS_DENIED,
+        "Access denied / unauthorized request",
+        StatusCodes.UNAUTHORIZED
+    );
+      next();
+    } catch (error) {
+      return next(error);
+    }
+  };
 };
 
 export default authorization;

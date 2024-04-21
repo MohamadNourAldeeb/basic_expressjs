@@ -42,7 +42,6 @@ Role_Permissions.belongsTo(Permissions, {
     foreignKey: "perm_id",
 });
 
-// ! team User and permissions   extra permissions
 
 User.hasMany(User_Permissions, {
     constraints: true,
@@ -55,6 +54,9 @@ User.hasMany(User_Permissions, {
 User_Permissions.belongsTo(User, {
     foreignKey: "user_id",
 });
+
+
+
 
 Permissions.hasMany(User_Permissions, {
     constraints: true,

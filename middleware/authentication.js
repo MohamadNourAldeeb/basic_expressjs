@@ -5,7 +5,7 @@ const authentication = async (req, res, next) => {
     try {
         let rawToken = req.headers.authorization;
 
-        if (!rawToken) throw Error("  token لا يوجد ");
+        if (!rawToken) throw Error(" NO token found");
 
         if (rawToken.startsWith("Bearer"))
             rawToken = rawToken.replace("Bearer ", "");
