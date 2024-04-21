@@ -22,20 +22,25 @@ The main features of the project include:
 `JWT_EXPIRES_IN `  to generate a key for expires like  90d
 `REFRESH_TOKEN_KEY`  the private key to generate  refreshTokens for users
 `REFRESH_TOKEN_EXPIRES_IN `  to generate a key for expires like  90d
+`email` the email of your gmail account 
+`emailpassword ` the app password for your account
 
 # Usage
 
 in this api there is the following endpoints:
 1. `POST` /auth/signup : to signUp a new account
    you will need to send the following  information as a json  
-   full_name , gender , phoneNumber , username , password , role_id,customPermissions 
-2. `POST` auth/login: to log in to your account
+   full_name , gender ,email, phoneNumber , username , password , role_id, customPermissions
+2. `POST` auth/verification/email: to enter the verification code
+   you will need to send the following information as a json
+    verifiedCode
+3. `POST` auth/login: to log in to your account
    you will need to send the following information as a json
     username, password 
-3. `GET` /admin/role :  to get all in db
-4. `POST` /admin/role/create : to create new role for this user  with title and text
-5. `PUT` /admin/role/update/id: to update one of you role with the id
-6. `DELETE` /admin/delete/id: to delete one of you role with the id
+4. `GET` /admin/role :  to get all in db
+5. `POST` /admin/role/create : to create new role for this user  with title and text
+6. `PUT` /admin/role/update/id: to update one of you role with the id
+7. `DELETE` /admin/delete/id: to delete one of you role with the id
 
 
 # Authentication
