@@ -15,15 +15,15 @@ export const limit = rateLimit({
     },
 });
 export const limitSendCode = rateLimit({
-    windowMs: 2 * 60 * 1000,
-    max: 20,
+    windowMs: 3 * 60 * 1000,
+    max: 5,
     standardHeaders: true, // Return rate limit info in the RateLimit-* headers
     // legacyHeaders: false, // Disable the X-RateLimit-* headers,
     statusCode: StatusCodes.TOO_MANY_REQUESTS, //status code response
     // skipSuccessfulRequests: false,
     message: {
         success: false,
-        error: "لقد قمت بعملية ارسال كود التحقيق بشكل كبير الرجاء الانتظار مدة 2 دقيقة ثم اعادة المحاولة",
+        error: "You have sent the verification code a lot, please wait 3 minutes and try again",
         // data: {},
     },
 });

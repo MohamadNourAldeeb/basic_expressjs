@@ -19,9 +19,10 @@ dotenv.config({ path: `./.env` });
 import { v4 as uuidv4 } from "uuid";
 import { sequelize } from "../../utils/connect.js";
 
-import  sendingMail from "../../utils/emails.js";
-import crypto from 'crypto';
+import sendingMail from "../../utils/emails.js";
+
 import { addToRedisCache, getFromRedisCache } from "../../utils/redis_cache.js";
+import { sendCode } from "../../utils/send_code.js";
 
 const authController = {
     login: async (req, res, next) => {
@@ -168,8 +169,8 @@ const authController = {
                     StatusCodes.BAD_REQUEST
                 );
         }
+
         await sequelize.transaction(async (transaction) => {
-         
             let user = await User.create(
                 {
                     full_name: req.body.full_name,
@@ -178,28 +179,21 @@ const authController = {
                     username: req.body.username,
                     password: req.body.password,
                     role_id: req.body.role_id,
-                    email:req.body.email
+                    email: req.body.email,
                 },
                 { transaction }
             );
-            const verifiedCode=crypto.randomInt(100000,999999).toString();
-            addToRedisCache(
-             user.email,
-                verifiedCode,
-                3 * 60 
-            );
-            // store the verifiedCode for 3 minutes
-            await sendingMail({from:process.env.email,to:user.email,subject: "Account Verification Link", name:user.username,verifiedCode})
+            await sendCode(user.username, user.email);
             if (req.body.customPermissions.length)
                 await User_Permissions.bulkCreate(
                     req.body.customPermissions.map((item) => ({
                         user_id: user.id,
                         perm_id: item,
-                    }))
-                ),
-                    transaction;
+                    })),
+                    transaction
+                );
         });
-    
+
         res.status(StatusCodes.OK).send({
             success: true,
             data: { msg: "operation accomplished successfully" },
@@ -212,49 +206,57 @@ const authController = {
         });
     },
     verification: async (req, res, next) => {
-       const verifiedCodeCash= await getFromRedisCache(
-        req.params.email
-    );
-        const InputverifiedCode =req.body.verifiedCode;
-    if(!verifiedCodeCash)
-    throw new CustomError(
-        SINGNUP_ERROR,
-        "Sorry, time is up. ",
-        StatusCodes.BAD_REQUEST
-    );
-      if(verifiedCodeCash !==InputverifiedCode)
-      throw new CustomError(
-        SINGNUP_ERROR,
-        "Sorry, the verification code is incorrect ",
-        StatusCodes.BAD_REQUEST
-    );
-    const user = await User.findOne({
-        raw: true,
-        where: { email: req.params.email },
-    });
-    if (!user)
-    throw new CustomError(
-        LOGIN_ERROR,
-        "SomeThing went wrong !!! , user with this email not found",
-        StatusCodes.BAD_REQUEST
-    );
-    let userExtPerm = await User_Permissions.findAll({
-        raw: true,
-        where: { user_id: user.id },
-    });
-    userExtPerm = userExtPerm.map((item) => item.id);
-    let deviceId = uuidv4();
-    const token = generateToken(
-        {
-            userId: user.id,
-            userName: user.username,
-            roleId: user.role_id,
-            userExtPerm,
-            deviceId,
-        },
-        process.env.TOKEN_KEY,
-        process.env.JWT_EXPIRES_IN
-    );
+        const verifiedCodeCash = await getFromRedisCache(req.params.email);
+        const InputverifiedCode = req.body.verifiedCode;
+        const user = await User.findOne({
+            raw: true,
+            where: { email: req.params.email },
+        });
+
+        if (!user)
+            throw new CustomError(
+                LOGIN_ERROR,
+                "SomeThing went wrong !!! , user with this email not found",
+                StatusCodes.BAD_REQUEST
+            );
+        if (!verifiedCodeCash)
+            throw new CustomError(
+                SINGNUP_ERROR,
+                "Sorry, time is up. ",
+                StatusCodes.BAD_REQUEST
+            );
+        if (verifiedCodeCash !== InputverifiedCode)
+            throw new CustomError(
+                SINGNUP_ERROR,
+                "Sorry, the verification code is incorrect ",
+                StatusCodes.BAD_REQUEST
+            );
+
+        let userExtPerm = await User_Permissions.findAll({
+            raw: true,
+            where: { user_id: user.id },
+        });
+        userExtPerm = userExtPerm.map((item) => item.id);
+        let deviceId = uuidv4();
+        await User.update(
+            {
+                isAuthenticated: true,
+            },
+            {
+                where: { id: user.id },
+            }
+        );
+        const token = generateToken(
+            {
+                userId: user.id,
+                userName: user.username,
+                roleId: user.role_id,
+                userExtPerm,
+                deviceId,
+            },
+            process.env.TOKEN_KEY,
+            process.env.JWT_EXPIRES_IN
+        );
         res.status(StatusCodes.OK).send({
             success: true,
             data: {
@@ -265,8 +267,7 @@ const authController = {
             },
         });
     },
-    reset_password:async(req,res,next)=>{
-
+    reset_password: async (req, res, next) => {
         const user = await User.findOne({
             raw: true,
             where: { id: req.user.userId },
@@ -288,7 +289,6 @@ const authController = {
                 "the old password is incorrect",
                 StatusCodes.BAD_REQUEST
             );
-        
 
         await User.update(
             {
@@ -303,8 +303,33 @@ const authController = {
             success: true,
             data: { msg: "operation accomplished successfully" },
         });
-    }
+    },
+    resend_code: async (req, res, next) => {
+        const user = await User.findOne({
+            raw: true,
+            where: { email: req.params.email },
+        });
 
+        if (!user)
+            throw new CustomError(
+                LOGIN_ERROR,
+                "SomeThing went wrong !!! , user with this email not found",
+                StatusCodes.BAD_REQUEST
+            );
+
+        if (user.isAuthenticated === true)
+            throw new CustomError(
+                LOGIN_ERROR,
+                "you already authenticated ",
+                StatusCodes.BAD_REQUEST
+            );
+        await sendCode(user.username, user.email);
+
+        res.status(StatusCodes.OK).send({
+            success: true,
+            data: { msg: "operation accomplished successfully" },
+        });
+    },
 };
 
 export default authController;

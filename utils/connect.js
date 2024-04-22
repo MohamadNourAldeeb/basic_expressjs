@@ -82,5 +82,4 @@ async function initial() {
     await all.Permissions.bulkCreate(allPermissions);
     await all.Role_Permissions.bulkCreate(adminRolePermissions);
     await all.Role_Permissions.bulkCreate(userRolePermissions);
-
 }
