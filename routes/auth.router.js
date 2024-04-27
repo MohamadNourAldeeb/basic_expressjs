@@ -11,32 +11,32 @@ import { schema } from "../utils/validations/schema/auth.schema.js";
 import { enumTypeInput as type } from "../utils/constants/enums.js";
 
 router.post(
-  "/login",
-  limitLogin,
-  validate(schema.logIn, type.body),
-  tryCatch(authController.login)
+    "/login",
+    limitLogin,
+    validate(schema.logIn, type.body),
+    tryCatch(authController.login)
 );
 router.post("/signup", uservalidate, tryCatch(authController.signup));
 router.post("/verification/:email", tryCatch(authController.verification));
 router.post("/google", tryCatch(authController.google));
 router.post(
-  "/refresh_token",
-  authentication,
-  tryCatch(authController.refreshToken)
+    "/refresh_token",
+    authentication,
+    tryCatch(authController.refreshToken)
 );
 router.post(
-  "/reset_password",
-  authentication,
-  tryCatch(authController.reset_password)
+    "/reset_password",
+    authentication,
+    tryCatch(authController.reset_password)
 );
 router.post(
-  "/resend_code/:email",
-  limitSendCode,
-  tryCatch(authController.resend_code)
+    "/resend_code/:email",
+    limitSendCode,
+    tryCatch(authController.resend_code)
 );
 router.post(
-  "/send_code/:email",
-  limitSendCode,
-  tryCatch(authController.send_code)
+    "/send_code/:email",
+    limitSendCode,
+    tryCatch(authController.send_code)
 );
 export default router;
