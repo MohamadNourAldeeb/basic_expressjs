@@ -1,12 +1,15 @@
 //importing modules
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import CustomError from "./custom_error.js";
+import { EMAIL_ERROR, LOGIN_ERROR } from "./constants/error_code.js";
+import { StatusCodes } from "http-status-codes";
 dotenv.config();
 
 //function to send email to the user
 const sendingMail = async ({ from, to, subject, text, name, verifiedCode }) => {
-    try {
-        const html = `
+  try {
+    const html = `
     <!DOCTYPE html>
     <html>
       <head>
@@ -59,37 +62,38 @@ const sendingMail = async ({ from, to, subject, text, name, verifiedCode }) => {
       </body>
     </html>
   `;
-        let mailOptions = {
-            from,
-            to,
-            subject,
-            html,
-        };
-        //asign createTransport method in nodemailer to a variable
-        //service: to determine which email platform to use
-        //auth contains the senders email and password which are all saved in the .env
+    let mailOptions = {
+      from,
+      to,
+      subject,
+      html,
+    };
+    //asign createTransport method in nodemailer to a variable
+    //service: to determine which email platform to use
+    //auth contains the senders email and password which are all saved in the .env
 
-        const Transporter = nodemailer.createTransport({
-            service: "gmail",
-            host: "smtp.gmail.com",
-            port: 587,
-            secure: false,
-            auth: {
-                user: process.env.email,
-                pass: process.env.emailpassword,
-            },
-        });
+    const Transporter = nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.email,
+        pass: process.env.emailpassword,
+      },
+    });
 
-        //return the Transporter variable which has the sendMail method to send the mail
-        //which is within the mailOptions
-        return await Transporter.sendMail(mailOptions);
-    } catch (error) {
-        throw new CustomError(
-            LOGIN_ERROR,
-            "SomeThing went wrong !!! i didnt send email yet",
-            StatusCodes.BAD_REQUEST
-        );
-    }
+    //return the Transporter variable which has the sendMail method to send the mail
+    //which is within the mailOptions
+    return await Transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.log(error);
+    throw new CustomError(
+      EMAIL_ERROR,
+      "SomeThing went wrong !!! i didnt send email yet",
+      StatusCodes.BAD_REQUEST
+    );
+  }
 };
 
 export default sendingMail;

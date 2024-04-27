@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import CustomError from "../utils/custom_error.js";
 import { StatusCodes } from "http-status-codes";
-import { ACCESS_DENIED } from "../utils/constants/error_code.js";
+import { ACCESS_DENIED, LOGIN_ERROR } from "../utils/constants/error_code.js";
 import { setRoleAndRestrictionCache } from "../utils/set_cash.js";
 import { getFromRedisCache } from "../utils/redis_cache.js";
 dotenv.config({ path: `./.env` });
@@ -15,26 +15,23 @@ const authorization = (action) => {
       fromCache = JSON.parse(fromCache);
       if (!fromCache) {
         await setRoleAndRestrictionCache();
-        let fromCache = await getFromRedisCache(
-            `role:${roleId}`
-        );
+        let fromCache = await getFromRedisCache(`role:${roleId}`);
         fromCache = JSON.parse(fromCache);
 
         if (!fromCache)
-        throw new CustomError(
-            ACCESS_DENIED,
+          throw new CustomError(
+            LOGIN_ERROR,
             "An error has occurred, please re-login",
-            StatusCodes.UNAUTHORIZED
+            StatusCodes.BAD_REQUEST
+          );
+      }
+      if (userExtPerm?.length && userExtPerm.includes(action)) return next();
+      if (!fromCache.permissions.includes(action))
+        throw new CustomError(
+          ACCESS_DENIED,
+          "Access denied / unauthorized request",
+          StatusCodes.FORBIDDEN
         );
-    } 
-    if (userExtPerm?.length && userExtPerm.includes(action))
-        return  next();
-    if (!fromCache.permissions.includes(action))
-    throw new CustomError(
-        ACCESS_DENIED,
-        "Access denied / unauthorized request",
-        StatusCodes.UNAUTHORIZED
-    );
       next();
     } catch (error) {
       return next(error);
